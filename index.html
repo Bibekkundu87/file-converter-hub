@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConvertMaster - JPG to Text & File Tools</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- LIBRARIES -->
+    <!-- Tesseract.js (OCR) -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js'></script>
+    <!-- jsPDF (PDF Generation) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- PDF.js (PDF Reading) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- SheetJS (Excel) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- heic2any (HEIC Support) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js"></script>
+
+    <script>
+        // Initialize PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .tool-card {
+            transition: all 0.2s ease;
+        }
+        
+        .tool-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Custom Icon Colors */
+        .icon-jpg { color: #f97316; }   /* Orange */
+        .icon-png { color: #0ea5e9; }   /* Blue */
+        .icon-pdf { color: #ef4444; }   /* Red */
+        .icon-word { color: #2563eb; }  /* Dark Blue */
+        .icon-excel { color: #16a34a; } /* Green */
+        .icon-svg { color: #8b5cf6; }   /* Purple */
+        .icon-txt { color: #64748b; }   /* Gray */
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-200">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 dark:bg-slate-800 dark:border-slate-700 transition-colors duration-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2 cursor-pointer" onclick="resetApp()">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-900 dark:text-white">ConvertMaster</span>
+                </div>
+                
+                <!-- Theme Toggle -->
+                <div class="flex items-center">
+                    <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all focus:outline-none" aria-label="Toggle Dark Mode">
+                        <i id="theme-icon" class="fa-solid fa-moon text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        
+        <!-- Hero Section: Active Tool Display -->
+        <div id="active-tool-container" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-12 text-center transition-all dark:bg-slate-800 dark:border-slate-700">
+            
+            <h1 id="tool-title" class="text-3xl md:text-4xl font-bold text-slate-900 mb-4 dark:text-white">JPG to Text</h1>
+            <p id="tool-desc" class="text-slate-500 mb-8 text-lg dark:text-slate-400">Extract text from images instantly using OCR technology.</p>
+
+            <!-- Upload Area -->
+            <div class="max-w-2xl mx-auto">
+                <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-10 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative group dark:bg-slate-900/50 dark:border-slate-600 dark:hover:bg-slate-700/50">
+                    <!-- FIXED: Added z-50 to ensure input is always on top and clickable -->
+                    <input type="file" id="file-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50" accept="image/jpeg, image/png, image/jpg">
+                    
+                    <div class="flex flex-col items-center justify-center space-y-4">
+                        <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform dark:bg-blue-900/30 dark:text-blue-400">
+                            <i class="fa-solid fa-cloud-arrow-up text-2xl"></i>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-lg font-semibold text-slate-700 dark:text-slate-200">Choose Files</p>
+                            <p class="text-sm text-slate-500 mt-1 dark:text-slate-400">or drag and drop them here</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing / Result Area -->
+                <div id="processing-area" class="mt-8 hidden">
+                    <div class="flex flex-col items-center">
+                        <div class="loader mb-4 border-t-blue-600 dark:border-slate-700 dark:border-t-blue-500"></div>
+                        <p id="status-text" class="text-slate-600 font-medium animate-pulse dark:text-slate-300">Analyzing Image...</p>
+                        <div class="w-full bg-slate-200 rounded-full h-2.5 mt-4 max-w-md dark:bg-slate-700">
+                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="result-area" class="mt-8 hidden text-left bg-slate-50 rounded-xl border border-slate-200 p-6 dark:bg-slate-900 dark:border-slate-700">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-200">Result:</h3>
+                        <div class="flex gap-2">
+                             <button onclick="copyResult()" id="copy-btn" class="text-sm px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
+                                <i class="fa-regular fa-copy mr-1"></i> Copy
+                            </button>
+                            <button onclick="downloadResult()" id="download-btn" class="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm dark:bg-blue-600 dark:hover:bg-blue-500">
+                                <i class="fa-solid fa-download mr-1"></i> Download
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Text Result -->
+                    <textarea id="text-output" class="w-full h-48 p-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-700 font-mono text-sm resize-y mb-2 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200 dark:placeholder-slate-500" readonly></textarea>
+                    
+                    <!-- Image/File Result Container (for non-text conversions) -->
+                    <div id="file-output" class="hidden flex flex-col items-center justify-center py-8">
+                        <i class="fa-solid fa-file-circle-check text-green-500 text-5xl mb-4"></i>
+                        <p class="text-lg font-medium text-slate-800 dark:text-slate-200">Conversion Successful!</p>
+                        <p class="text-sm text-slate-500 mb-4 dark:text-slate-400">Your file is ready to download.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Tools Grid -->
+        <h2 class="text-2xl font-bold text-slate-900 mb-6 dark:text-white">All Conversion Tools</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            
+            <!-- JPG to PNG -->
+            <div onclick="switchTool('jpg-to-png')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-image icon-png text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">JPG to PNG</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Convert JPG images to PNG</p>
+                </div>
+            </div>
+
+            <!-- PNG to JPG -->
+            <div onclick="switchTool('png-to-jpg')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-image icon-png text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">PNG to JPG</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Convert PNG images to JPG</p>
+                </div>
+            </div>
+
+            <!-- JPG to SVG -->
+            <div onclick="switchTool('jpg-to-svg')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-bezier-curve icon-svg text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">JPG to SVG</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Wrap image in SVG</p>
+                </div>
+            </div>
+
+             <!-- JPG Converter (Generic) -->
+             <div onclick="switchTool('jpg-to-text')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0 flex items-center justify-center">
+                    <i class="fa-solid fa-images icon-jpg text-4xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">JPG to Text</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Extract Text (OCR)</p>
+                </div>
+            </div>
+
+            <!-- Word to JPG -->
+            <div onclick="switchTool('word-to-jpg')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-word icon-word text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">Word to JPG</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Simulated (Requires Server)</p>
+                </div>
+            </div>
+
+            <!-- JPG to Word -->
+            <div onclick="switchTool('jpg-to-word')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-word icon-word text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">JPG to Word</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Insert image into Doc</p>
+                </div>
+            </div>
+
+            <!-- PDF to Word (Now Real-ish) -->
+            <div onclick="switchTool('pdf-to-word')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-pdf icon-pdf text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-word icon-word text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">PDF to Word</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Extract Text to Doc</p>
+                </div>
+            </div>
+
+            <!-- PDF to Text -->
+            <div onclick="switchTool('pdf-to-text')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-pdf icon-pdf text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-regular fa-file-lines icon-txt text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">PDF to Text</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Extract text from PDF</p>
+                </div>
+            </div>
+
+            <!-- JPG to PDF -->
+            <div onclick="switchTool('jpg-to-pdf')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-pdf icon-pdf text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">JPG to PDF</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Images to Document</p>
+                </div>
+            </div>
+
+             <!-- HEIC to JPG (REAL) -->
+             <div onclick="switchTool('heic-to-jpg')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-image icon-txt text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">HEIC to JPG</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">iPhone photos to JPG</p>
+                </div>
+            </div>
+
+             <!-- SVG to JPG -->
+             <div onclick="switchTool('svg-to-jpg')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-bezier-curve icon-svg text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">SVG to JPG</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Vector to Raster</p>
+                </div>
+            </div>
+
+             <!-- JPG to Excel (Simulated) -->
+             <div onclick="switchTool('jpg-to-excel')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-excel icon-excel text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">JPG to Excel</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Table image to Sheet</p>
+                </div>
+            </div>
+
+             <!-- Excel to PDF (Simulated) -->
+             <div onclick="switchTool('excel-to-pdf')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-excel icon-excel text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-pdf icon-pdf text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">Excel to PDF</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Spreadsheet to Doc</p>
+                </div>
+            </div>
+
+             <!-- PDF to Excel (Simulated) -->
+             <div onclick="switchTool('pdf-to-excel')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-pdf icon-pdf text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-excel icon-excel text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">PDF to Excel</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">PDF tables to XLSX</p>
+                </div>
+            </div>
+
+            <!-- PDF to JPG -->
+            <div onclick="switchTool('pdf-to-jpg')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-pdf icon-pdf text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-image icon-jpg text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">PDF to JPG</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Pages to Images</p>
+                </div>
+            </div>
+
+            <!-- Excel to CSV -->
+            <div onclick="switchTool('excel-to-csv')" class="tool-card bg-white p-4 rounded-xl border border-slate-200 cursor-pointer flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-blue-500 hover:border-blue-500">
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <i class="fa-solid fa-file-excel icon-excel text-3xl absolute top-0 left-0"></i>
+                    <i class="fa-solid fa-arrow-right text-slate-400 text-sm absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-0.5 z-10 dark:bg-slate-800 dark:text-slate-500"></i>
+                    <i class="fa-solid fa-file-csv icon-txt text-3xl absolute bottom-0 right-0 z-0"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">Excel to CSV</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Sheet to Text</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Description Section -->
+        <div class="mt-20 text-center max-w-3xl mx-auto">
+            <h2 class="text-2xl font-bold text-slate-800 mb-4 dark:text-white">The Best Online File Converter</h2>
+            <p class="text-slate-600 dark:text-slate-400">
+                Easily convert your files to any format. We support PDF, Word, Excel, JPG, PNG and more. 
+                Our tools are fast, free, and secure. All processing happens in your browser for maximum privacy.
+            </p>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-10 mt-10 dark:bg-slate-800 dark:border-slate-700 transition-colors duration-200">
+        <div class="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm dark:text-slate-400">
+            <p>&copy; 2025 ConvertMaster. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // State
+        let currentTool = 'jpg-to-text';
+        let processedData = null; // Stores result data (text or blob URL)
+        let createdObjectUrls = []; // Track created URLs to avoid memory leaks
+
+        // Theme Toggle Logic
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+        }
+
+        // Initialize Theme
+        (function initTheme() {
+            const theme = localStorage.getItem('theme');
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const icon = document.getElementById('theme-icon');
+
+            if (theme === 'dark' || (!theme && systemDark)) {
+                document.documentElement.classList.add('dark');
+                if (icon) {
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                }
+            } else {
+                document.documentElement.classList.remove('dark');
+                if (icon) {
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                }
+            }
+        })();
+
+        // Tool Configurations
+        const tools = {
+            'jpg-to-text': { title: 'JPG to Text (OCR)', desc: 'Upload an image to extract text instantly.', accept: 'image/*', type: 'text' },
+            'jpg-to-png': { title: 'JPG to PNG Converter', desc: 'Convert your JPG images to PNG format.', accept: 'image/jpeg, image/jpg', type: 'image' },
+            'png-to-jpg': { title: 'PNG to JPG Converter', desc: 'Convert your PNG images to JPG format.', accept: 'image/png', type: 'image' },
+            'jpg-to-pdf': { title: 'JPG to PDF Converter', desc: 'Turn your images into a PDF document.', accept: 'image/*', type: 'file' },
+            'pdf-to-text': { title: 'PDF to Text', desc: 'Extract plain text from your PDF documents.', accept: 'application/pdf', type: 'text' },
+            'pdf-to-jpg': { title: 'PDF to JPG', desc: 'Convert PDF pages into image files.', accept: 'application/pdf', type: 'image' },
+            'jpg-to-word': { title: 'JPG to Word', desc: 'Insert your image into a Word document.', accept: 'image/*', type: 'file' },
+            'pdf-to-word': { title: 'PDF to Word', desc: 'Extract text from PDF to Word.', accept: 'application/pdf', type: 'file' },
+            'svg-to-jpg': { title: 'SVG to JPG', desc: 'Convert vector SVG files to JPG.', accept: '.svg, image/svg+xml', type: 'image' },
+            'jpg-to-svg': { title: 'JPG to SVG', desc: 'Embed your JPG inside an SVG file.', accept: 'image/jpeg, image/jpg', type: 'file' },
+            'excel-to-csv': { title: 'Excel to CSV', desc: 'Convert Excel sheets to Comma Separated Values.', accept: '.xlsx, .xls', type: 'text' },
+            'heic-to-jpg': { title: 'HEIC to JPG', desc: 'Convert iPhone HEIC photos to standard JPG.', accept: '.heic', type: 'image' },
+            'default': { title: 'File Converter', desc: 'Convert your file to the desired format.', accept: '*/*', type: 'simulation' }
+        };
+
+        // DOM Elements
+        const titleEl = document.getElementById('tool-title');
+        const descEl = document.getElementById('tool-desc');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const processingArea = document.getElementById('processing-area');
+        const resultArea = document.getElementById('result-area');
+        const textOutput = document.getElementById('text-output');
+        const fileOutput = document.getElementById('file-output');
+        const progressBar = document.getElementById('progress-bar');
+        const statusText = document.getElementById('status-text');
+        const downloadBtn = document.getElementById('download-btn');
+        const copyBtn = document.getElementById('copy-btn');
+
+        function cleanupMemory() {
+            createdObjectUrls.forEach(url => URL.revokeObjectURL(url));
+            createdObjectUrls = [];
+        }
+
+        function resetApp() {
+            cleanupMemory();
+            switchTool('jpg-to-text');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function switchTool(toolId) {
+            cleanupMemory();
+            currentTool = toolId;
+            const config = tools[toolId] || { ...tools['default'], title: formatTitle(toolId) };
+            
+            titleEl.textContent = config.title;
+            descEl.textContent = config.desc;
+            fileInput.accept = config.accept;
+            
+            processingArea.classList.add('hidden');
+            resultArea.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            fileInput.value = ''; 
+            
+            document.getElementById('active-tool-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function formatTitle(id) {
+            return id.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        }
+
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('bg-blue-50', 'border-blue-400');
+             if(document.documentElement.classList.contains('dark')){
+                 dropZone.classList.add('dark:bg-slate-700');
+            }
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('bg-blue-50', 'border-blue-400', 'dark:bg-slate-700');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('bg-blue-50', 'border-blue-400', 'dark:bg-slate-700');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect({ target: { files: e.dataTransfer.files } });
+            }
+        });
+
+        function validateFile(file) {
+            if (!file) return false;
+            
+            const config = tools[currentTool];
+            // Skip validation for default/simulated tools or wildcard
+            if (config.accept === '*/*' || !config.accept) return true;
+
+            const fileType = file.type.toLowerCase();
+            const fileName = file.name.toLowerCase();
+            const accepts = config.accept.split(',').map(a => a.trim().toLowerCase());
+
+            // Check mime type or extension
+            const isValid = accepts.some(accept => {
+                if (accept.startsWith('.')) {
+                    return fileName.endsWith(accept);
+                }
+                if (accept.endsWith('/*')) {
+                    const baseType = accept.replace('/*', '');
+                    return fileType.startsWith(baseType);
+                }
+                return fileType === accept;
+            });
+
+            if (!isValid) {
+                alert(`Invalid file type! \nExpected: ${config.accept}\nReceived: ${fileType || fileName}`);
+                resetUI();
+                return false;
+            }
+            return true;
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Strict Validation
+            if (!validateFile(file)) return;
+
+            dropZone.classList.add('hidden');
+            processingArea.classList.remove('hidden');
+            updateProgress(0);
+
+            switch(currentTool) {
+                case 'jpg-to-text': processOCR(file); break;
+                case 'jpg-to-png': convertImageFormat(file, 'png'); break;
+                case 'png-to-jpg': convertImageFormat(file, 'jpeg'); break;
+                case 'jpg-to-pdf': convertImageToPDF(file); break;
+                case 'pdf-to-text': convertPdfToText(file); break;
+                case 'pdf-to-word': convertPdfToWord(file); break; // New REAL implementation
+                case 'pdf-to-jpg': convertPdfToJpg(file); break;
+                case 'jpg-to-word': convertJpgToWord(file); break;
+                case 'svg-to-jpg': convertSvgToJpg(file); break;
+                case 'jpg-to-svg': convertJpgToSvg(file); break;
+                case 'excel-to-csv': convertExcelToCsv(file); break;
+                case 'heic-to-jpg': convertHeicToJpg(file); break;
+                default: simulateConversion(file); break;
+            }
+        }
+
+        function updateProgress(percent) {
+            progressBar.style.width = `${percent}%`;
+        }
+
+        // --- 1. OCR Functionality (Tesseract v4) ---
+        function processOCR(file) {
+            statusText.textContent = "Initializing OCR Engine...";
+            updateProgress(5);
+
+            Tesseract.recognize(
+                file,
+                'eng',
+                {
+                    logger: m => {
+                        // Better logging for V4
+                        if (m.status === 'loading tesseract core') {
+                            statusText.textContent = "Downloading Core Engine...";
+                            updateProgress(10);
+                        } else if (m.status === 'loading language traineddata') {
+                            statusText.textContent = "Downloading Language Data (Heavy)...";
+                            updateProgress(20);
+                        } else if (m.status === 'initializing api') {
+                            statusText.textContent = "Initializing API...";
+                            updateProgress(30);
+                        } else if (m.status === 'recognizing text') {
+                            statusText.textContent = `Reading Text: ${Math.round(m.progress * 100)}%`;
+                            updateProgress(30 + (m.progress * 70));
+                        } else {
+                             statusText.textContent = m.status;
+                        }
+                    }
+                }
+            ).then(({ data: { text } }) => {
+                showResult(text, 'text');
+            }).catch(err => {
+                console.error(err);
+                alert('Error reading image. Please ensure it is a valid image file.');
+                resetUI();
+            });
+        }
+
+        // --- 2. Image Format Conversion ---
+        function convertImageFormat(file, format) {
+            statusText.textContent = "Converting Image...";
+            updateProgress(30);
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    // Check for zero dimensions (common in some SVGs)
+                    if (img.width === 0 || img.height === 0) {
+                        img.width = 1000; // Default fallback
+                        img.height = 1000;
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    if(format === 'jpeg') {
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+                    
+                    ctx.drawImage(img, 0, 0);
+                    updateProgress(80);
+
+                    const mime = `image/${format}`;
+                    const quality = 0.92;
+                    const dataUrl = canvas.toDataURL(mime, quality);
+                    
+                    processedData = {
+                        url: dataUrl,
+                        filename: `converted.${format}`,
+                        type: 'download'
+                    };
+                    
+                    updateProgress(100);
+                    setTimeout(() => showResult(null, 'file'), 500);
+                }
+                img.onerror = () => {
+                    alert('Invalid image file. If this is an SVG, it might be malformed.');
+                    resetUI();
+                };
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        // --- 3. HEIC to JPG ---
+        function convertHeicToJpg(file) {
+            statusText.textContent = "Decoding HEIC...";
+            updateProgress(20);
+            
+            heic2any({
+                blob: file,
+                toType: "image/jpeg",
+                quality: 0.9
+            })
+            .then(function (conversionResult) {
+                updateProgress(80);
+                // heic2any might return array if multiple images
+                const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+                const url = URL.createObjectURL(blob);
+                createdObjectUrls.push(url);
+                
+                processedData = {
+                    url: url,
+                    filename: 'converted_heic.jpg',
+                    type: 'download'
+                };
+                updateProgress(100);
+                setTimeout(() => showResult(null, 'file'), 500);
+            })
+            .catch(function (e) {
+                console.error(e);
+                alert("Error converting HEIC file. Ensure it is a valid HEIC image.");
+                resetUI();
+            });
+        }
+
+        // --- 4. JPG to PDF (Fixed Transparency Bug) ---
+        function convertImageToPDF(file) {
+            statusText.textContent = "Generating PDF...";
+            updateProgress(20);
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    updateProgress(50);
+                    const { jsPDF } = window.jspdf;
+                    
+                    const doc = new jsPDF({
+                        orientation: img.width > img.height ? 'l' : 'p',
+                        unit: 'px',
+                        format: [img.width, img.height]
+                    });
+
+                    // Smart Format Detection
+                    const format = file.type === 'image/png' ? 'PNG' : 'JPEG';
+
+                    doc.addImage(img, format, 0, 0, img.width, img.height);
+                    updateProgress(90);
+
+                    const pdfBlob = doc.output('blob');
+                    const pdfUrl = URL.createObjectURL(pdfBlob);
+                    createdObjectUrls.push(pdfUrl);
+
+                    processedData = {
+                        url: pdfUrl,
+                        filename: 'document.pdf',
+                        type: 'download'
+                    };
+
+                    updateProgress(100);
+                    setTimeout(() => showResult(null, 'file'), 500);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- 5. PDF to Text ---
+        async function convertPdfToText(file) {
+            statusText.textContent = "Reading PDF...";
+            updateProgress(20);
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = "";
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    statusText.textContent = `Reading page ${i} of ${pdf.numPages}...`;
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += `--- Page ${i} ---\n${pageText}\n\n`;
+                    updateProgress(20 + (i / pdf.numPages) * 70);
+                }
+
+                showResult(fullText, 'text');
+
+            } catch (error) {
+                console.error(error);
+                alert("Error parsing PDF. It might be password protected or corrupted.");
+                resetUI();
+            }
+        }
+
+        // --- 6. PDF to Word (Text Extraction Wrapper) ---
+        async function convertPdfToWord(file) {
+            statusText.textContent = "Extracting Text for Word...";
+            updateProgress(20);
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = "";
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    // Add some line breaks to make it readable in Word
+                    const pageText = textContent.items.map(item => item.str + (item.hasEOL ? '<br>' : ' ')).join('');
+                    fullText += `<h3>Page ${i}</h3><p>${pageText}</p><hr>`;
+                    updateProgress(20 + (i / pdf.numPages) * 60);
+                }
+
+                 const htmlContent = `
+                    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                    <head><meta charset="utf-8"><title>Converted PDF</title></head>
+                    <body>${fullText}</body>
+                    </html>
+                `;
+
+                updateProgress(90);
+                const blob = new Blob(['\ufeff', htmlContent], {
+                    type: 'application/msword'
+                });
+                const url = URL.createObjectURL(blob);
+                createdObjectUrls.push(url);
+
+                processedData = {
+                    url: url,
+                    filename: 'converted_pdf.doc',
+                    type: 'download'
+                };
+                
+                updateProgress(100);
+                setTimeout(() => showResult(null, 'file'), 500);
+
+            } catch (error) {
+                console.error(error);
+                alert("Error parsing PDF.");
+                resetUI();
+            }
+        }
+
+        // --- 7. PDF to JPG ---
+        async function convertPdfToJpg(file) {
+            statusText.textContent = "Rendering PDF...";
+            updateProgress(20);
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const page = await pdf.getPage(1); 
+                
+                const scale = 2; // Better resolution
+                const viewport = page.getViewport({ scale });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+                
+                updateProgress(60);
+                await page.render(renderContext).promise;
+                
+                updateProgress(90);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+                processedData = {
+                    url: dataUrl,
+                    filename: 'page_1.jpg',
+                    type: 'download'
+                };
+                
+                updateProgress(100);
+                setTimeout(() => showResult(null, 'file'), 500);
+
+            } catch (error) {
+                console.error(error);
+                alert("Error rendering PDF.");
+                resetUI();
+            }
+        }
+
+        // --- 8. JPG to Word ---
+        function convertJpgToWord(file) {
+            statusText.textContent = "Creating Word Document...";
+            updateProgress(30);
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imgData = event.target.result;
+                
+                // Construct a simple HTML document compatible with Word
+                const htmlContent = `
+                    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                    <head><meta charset="utf-8"><title>Converted Image</title></head>
+                    <body>
+                        <img src="${imgData}" style="width:100%; max-width:600px;">
+                    </body>
+                    </html>
+                `;
+                
+                updateProgress(90);
+                const blob = new Blob(['\ufeff', htmlContent], {
+                    type: 'application/msword'
+                });
+                const url = URL.createObjectURL(blob);
+                createdObjectUrls.push(url);
+
+                processedData = {
+                    url: url,
+                    filename: 'image_document.doc',
+                    type: 'download'
+                };
+                
+                updateProgress(100);
+                setTimeout(() => showResult(null, 'file'), 500);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- 9. SVG to JPG ---
+        function convertSvgToJpg(file) {
+            statusText.textContent = "Rasterizing SVG...";
+            // Force strict MIME type checking handled in browser, but logic is same
+            convertImageFormat(file, 'jpeg'); 
+        }
+
+        // --- 10. JPG to SVG (Fixed Aspect Ratio) ---
+        function convertJpgToSvg(file) {
+             statusText.textContent = "Creating SVG...";
+             updateProgress(30);
+             
+             const reader = new FileReader();
+             reader.onload = function(event) {
+                 const img = new Image();
+                 img.onload = function() {
+                     const imgData = event.target.result;
+                     // Use real dimensions
+                     const svgContent = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="${img.width}" height="${img.height}" viewBox="0 0 ${img.width} ${img.height}">
+                            <image href="${imgData}" width="${img.width}" height="${img.height}" />
+                        </svg>
+                     `;
+                     
+                     const blob = new Blob([svgContent], {type: "image/svg+xml"});
+                     const url = URL.createObjectURL(blob);
+                     createdObjectUrls.push(url);
+                     
+                     processedData = {
+                        url: url,
+                        filename: 'converted.svg',
+                        type: 'download'
+                    };
+                    updateProgress(100);
+                    setTimeout(() => showResult(null, 'file'), 500);
+                 }
+                 img.src = event.target.result;
+             }
+             reader.readAsDataURL(file);
+        }
+
+        // --- 11. Excel to CSV ---
+        function convertExcelToCsv(file) {
+            statusText.textContent = "Parsing Workbook...";
+            updateProgress(20);
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    updateProgress(80);
+                    const csv = XLSX.utils.sheet_to_csv(worksheet);
+                    
+                    showResult(csv, 'text');
+                } catch(err) {
+                    console.error(err);
+                    alert("Error parsing Excel file.");
+                    resetUI();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- Simulation ---
+        function simulateConversion(file) {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                updateProgress(progress);
+                
+                if (progress < 30) statusText.textContent = "Uploading...";
+                else if (progress < 70) statusText.textContent = "Converting...";
+                else statusText.textContent = "Finalizing...";
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    processedData = {
+                        url: '#', 
+                        filename: `converted_file`,
+                        type: 'mock'
+                    };
+                    showResult(null, 'file');
+                }
+            }, 100);
+        }
+
+        // --- UI Helpers ---
+        function showResult(content, type) {
+            processingArea.classList.add('hidden');
+            resultArea.classList.remove('hidden');
+
+            if (type === 'text') {
+                textOutput.classList.remove('hidden');
+                fileOutput.classList.add('hidden');
+                copyBtn.classList.remove('hidden');
+                textOutput.value = content;
+                downloadBtn.onclick = () => downloadText(content);
+            } else {
+                textOutput.classList.add('hidden');
+                fileOutput.classList.remove('hidden');
+                copyBtn.classList.add('hidden');
+                downloadBtn.onclick = downloadFile;
+            }
+        }
+
+        function resetUI() {
+            processingArea.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            fileInput.value = '';
+        }
+
+        function copyResult() {
+            if (!textOutput.classList.contains('hidden')) {
+                textOutput.select();
+                document.execCommand('copy');
+                alert('Text copied to clipboard!');
+            }
+        }
+
+        function downloadText(text) {
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            createdObjectUrls.push(url);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'converted_text.txt';
+            a.click();
+        }
+
+        function downloadFile() {
+            if (processedData.type === 'mock') {
+                alert("This tool requires a backend server. Try the Real tools (JPG to Text, PDF tools, etc).");
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = processedData.url;
+            a.download = processedData.filename;
+            a.click();
+        }
+    </script>
+</body>
+</html>
